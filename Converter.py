@@ -1,66 +1,78 @@
+import os
 import json
 
 from openpyxl import load_workbook
 
 
 def convert_directory(dir):
-    return "json"
+    merged_dict = dict()
+    for file in os.listdir(dir):
+        try:
+            merged_dict.update(convert_file(os.path.join(dir, file)))
+        except Exception:
+            print(file)
+    return merged_dict
 
 
 def convert_file(file):
     wb = load_workbook(file)
     ws = wb.active
-    columns = []
-    sign_of_temp_schedule = False
 
-    for col in ws.iter_cols(min_row=3):
-        cells = []
-        for cell in col:
-            cells.append(cell.value)
-
-        if cells[0] or cells[1]:
-            if not cells[1]:
-                cells[1] = "1 группа"
-            columns.append(cells)
-
-        if "уч.нед." in str(cells[2]) or "уч.нед." in str(cells[3]):
-            sign_of_temp_schedule = True
-
-    day_of_the_week = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница"]
-
-    pr = None
+    day_of_the_weeks = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница"]
     groups = dict()
-    for col in range(len(columns)):
-        if columns[col][0]:
-            pr = columns[col][0]
-        else:
-            columns[col][0] = pr
+    columns = list(ws.iter_cols(min_row=3))
 
+    # Размерживаю ячейки и заполняю их данными
+    for items in sorted(ws.merged_cell_ranges):
+        items = str(items)
+        ws.unmerge_cells(items)
+
+        temp = None
+        for row in ws[items]:
+            for cell in row:
+                if cell.value:
+                    temp = cell.value
+
+        for row in ws[items]:
+            for cell in row:
+                cell.value = temp
+
+    # Пробежка по всем столбцам
+    for col in range(len(columns)):
+        # Если не имеет названия группы, то проигнорировать столбец
+        if not columns[col][0].value:
+            continue
+
+        # Инициализация словаря с расписанием на неделю (с учетом четности)
         daily_schedule = dict()
 
-        for cel in range(1, len(columns[col]), 2):
-            if columns[col][cel - 1] and not columns[col][cel]:
-                columns[col][cel] = columns[col][cel - 1]
-
-        for i in range(1, 6):
-            if sign_of_temp_schedule:
-                daily_schedule.update({day_of_the_week[i - 1]: columns[col][i * 12 - 9: i * 12 + 3]})
+        cells = [[], []]
+        counter = 0
+        for cell in range(3, 63):
+            counter += 1
+            # Если неделя четная
+            if cell % 2 == 0:
+                cells[0].append(columns[col][cell].value)
+            # Если неделя нечетная
             else:
-                daily_schedule.update({day_of_the_week[i - 1]: columns[col][i * 12 - 10: i * 12 + 2]})
+                cells[1].append(columns[col][cell].value)
 
-        if columns[col][0] in groups:
-            groups[columns[col][0]] += [daily_schedule]
+            if counter % 12 == 0:
+                daily_schedule.update({day_of_the_weeks[counter // 12 - 1]: cells})
+                cells = [[], []]
+
+        if columns[col][0].value in groups:
+            groups[columns[col][0].value].append(daily_schedule)
         else:
-            groups[columns[col][0]] = [daily_schedule]
+            groups[columns[col][0].value] = [daily_schedule]
 
     return groups
 
 
 if __name__ == "__main__":
-    res = convert_file("Расписания/ISA 2 1-20 jr.xlsx")
+    res = convert_file("Schedule/GRm 2 41-43.xlsx")
+    # res = convert_directory("Schedule")
 
     with open("data.json", "w", encoding="utf8") as file:
         json.dump(res, file)
 
-    print(res["ИСА 2 курс 01 группа (Б) (оч.ф.о., 08.03.01)"][0]["Четверг"])
-    print(res["ИСА 2 курс 01 группа (Б) (оч.ф.о., 08.03.01)"][1]["Четверг"])
