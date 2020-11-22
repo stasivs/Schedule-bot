@@ -48,7 +48,11 @@ def convert_file(file):
 
         cells = [[], []]
         counter = 0
-        for cell in range(3, 63):
+        start = 2
+        if "уч.нед." in str(columns[col][2].value):
+            start += 1
+
+        for cell in range(start, start + 60):
             counter += 1
             # Если неделя четная
             if cell % 2 == 0:
@@ -70,8 +74,9 @@ def convert_file(file):
 
 
 if __name__ == "__main__":
-    res = convert_file("Schedule/GRm 2 41-43.xlsx")
-    # res = convert_directory("Schedule")
+    # res = convert_file("Schedule/GR 2 41-43.xlsx")
+    # res = convert_file("Schedule/ISA 2 1-20.xlsx")
+    res = convert_directory("Schedule")
 
     with open("data.json", "w", encoding="utf8") as file:
         json.dump(res, file)
