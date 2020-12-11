@@ -65,10 +65,14 @@ def convert_file(file):
                 daily_schedule.update({day_of_the_weeks[counter // 12 - 1]: cells})
                 cells = [[], []]
 
-        if columns[col][0].value in groups:
-            groups[columns[col][0].value].append(daily_schedule)
+        # Немного видоизменим заголовок
+        group = columns[col][0].value.lower().split()
+        title = group[0] + " " + group[1] + " " + str(int(group[3]))
+
+        if title in groups:
+            groups[title].append(daily_schedule)
         else:
-            groups[columns[col][0].value] = [daily_schedule]
+            groups[title] = [daily_schedule]
 
     return groups
 
